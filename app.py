@@ -15,11 +15,80 @@ st.markdown("""
 
 st.title("⚙️ Machine d'action à haut rendement")
 
-# --- Sidebar ---
-st.sidebar.header("🧩 Charger JSON")
-json_text = st.sidebar.text_area("Colle ton JSON ici", height=400)
+# Template du prompt
+PROMPT_TEMPLATE = """Tu es une MACHINE D'ACTION À HAUT RENDEMENT. 
+Ta mission : à partir d'une **intention stratégique, même très vague ou symbolique**, générer **exclusivement** une liste d'items d'action concrets, granularisés et prêts à exécution. 
+Ne génère **pas** de texte stratégique, pas de métaphores, pas d'analyse philosophique — produis uniquement des éléments opérationnels.
+ 
+CONTRAINTES FORTE : 
+1. Si l'intention est vide ou vague, considère qu'il faut *partir du néant* et produire matière opérationnelle.
+2. **Ne crée pas** automatiquement de mails, réunions ou autres communications, sauf si l'entrée demande explicitement "préparer un mail", "fixer une réunion" ou équivalent. Dans ce cas, crée un item d'action spécifique pour l'envoi ou la planification (toujours comme item).
+3. Chaque item doit être **exécutable immédiatement** (action claire, verbe d'exécution, résultat attendu).
+4. Toutes les sorties doivent être en **JSON strict** selon le schéma ci-dessous.
+5. Langage : français. Style : direct, impératif, sans verbes mous.
+ 
+FORMAT DE SORTIE (strict JSON) :
+{
+  "seed_intent": "string (texte brut reçu)",
+  "items": [
+    {
+      "id": "string court unique",
+      "titre": "string (titre accrocheur et exécutif)",
+      "description": "string (1-2 phrases décrivant l'action exacte à réaliser)",
+      "action": "string (verbe direct + objet, ex: 'rédiger un mail de 5 lignes à...')",
+      "priorite": "haute | moyenne | basse",
+      "effet_attendu": "string (résultat concret attendu après exécution)",
+      "temps_estime_min": integer,
+      "niveau_d_effort": "1 | 2 | 3",
+      "dependances": ["id1", "id2"] | [],
+      "tags": ["string", ...],
+      "statut_suggere": "à faire | en cours | bloqué | fait",
+      "suggested_next": "string (prochaine micro-action si applicable)"
+    }
+  ],
+  "summary": "string (2-3 phrases maximum, récapitulatif factuel du nombre d'items et des quick wins)"
+}
+ 
+RÈGLES OPÉRATIONNELLES :
+- GÉNÈRE au moins **6 items** par intention (sauf si l'entrée demande explicitement moins), dont **2 quick-wins** exécutables en ≤ 15 minutes.
+- Varie la granularité : mêle micro-actions (5–15 min) et petites tâches (30–90 min). Indique `temps_estime_min`.
+- Pour chaque item, fournis une **prochaine petite étape** claire dans `suggested_next` (exécutée en ≤ 10 min).
+- DON'T: n'écris jamais "voir", "penser", "réfléchir". Écris : "contacter X", "rédiger", "tester", "mettre en ligne", etc.
+- Si l'intention contient un mot-clé explicite (ex: "client", "roadmap", "recrutement"), ajoute le tag correspondant.
+- Génère des `id` courts (format `it-01`, `it-02`, ...).
+ 
+ENTRÉE (insérée ici) :
+"""
 
-if st.sidebar.button("🚀 Charger"):
+# --- Sidebar : Génération ---
+st.sidebar.header("🚀 Générer des actions")
+user_input = st.sidebar.text_area("Quelle est ton intention ?", height=150, placeholder="Ex: Lancer mon produit SaaS, préparer la réunion client...")
+
+if st.sidebar.button("🤖 Push LLM", type="primary"):
+    full_prompt = PROMPT_TEMPLATE + f"\n{user_input}"
+    
+    # Copier dans le presse-papier via JavaScript + ouvrir ChatGPT
+    js_code = f"""
+    <script>
+        // Copier dans le presse-papier
+        navigator.clipboard.writeText(`{full_prompt.replace('`', '\\`').replace('$', '\\$')}`).then(function() {{
+            console.log('Prompt copié !');
+        }});
+        
+        // Ouvrir ChatGPT dans un nouvel onglet
+        window.open('https://chatgpt.com/', '_blank');
+    </script>
+    """
+    st.sidebar.components.v1.html(js_code, height=0)
+    st.sidebar.success("✅ Prompt copié ! ChatGPT s'ouvre...")
+
+st.sidebar.divider()
+
+# --- Sidebar : Chargement JSON ---
+st.sidebar.header("🧩 Charger JSON")
+json_text = st.sidebar.text_area("Colle le JSON de retour ici", height=300)
+
+if st.sidebar.button("📥 Charger"):
     try:
         data = json.loads(json_text)
         st.session_state["data"] = data
@@ -30,7 +99,7 @@ if st.sidebar.button("🚀 Charger"):
 
 # --- Affichage ---
 if "data" not in st.session_state:
-    st.info("👈 Colle ton JSON et clique sur Charger")
+    st.info("👆 Utilise la sidebar pour générer ou charger des actions")
     st.stop()
 
 data = st.session_state["data"]
@@ -45,9 +114,9 @@ for idx, item in enumerate(items):
     # Couleurs adaptées au thème sombre
     priorite = item.get("priorite", "").lower()
     colors = {
-        "haute": "#8b0000",      # Rouge foncé
-        "moyenne": "#b8860b",    # Jaune foncé/or
-        "basse": "#1e3a5f"       # Bleu foncé
+        "haute": "#8b0000",
+        "moyenne": "#b8860b",
+        "basse": "#1e3a5f"
     }
     bg = colors.get(priorite, "#1a1a2e")
     border_colors = {
