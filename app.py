@@ -26,7 +26,7 @@ json_input = st.sidebar.text_area(
 
 # --- Charger JSON ---
 if st.sidebar.button("🚀 Charger le JSON"):
-    st.session_state.json_input = json_input  # persistance du texte collé
+    st.session_state.json_input = json_input
     try:
         data = json.loads(st.session_state.json_input)
         items = data.get("items", [])
@@ -43,14 +43,26 @@ if st.sidebar.button("🚀 Charger le JSON"):
     except Exception as e:
         st.error(f"Erreur de parsing JSON : {e}")
 
+# --- Préparer items pour affichage sûr ---
+items_to_display = []
+if isinstance(st.session_state.items, list):
+    items_to_display = st.session_state.items
+elif isinstance(st.session_state.items, dict):
+    items_to_display = [st.session_state.items]
+else:
+    items_to_display = []
+
 # --- Affichage des items ---
-if st.session_state.items:
+if items_to_display:
     st.subheader(f"🎯 Intention : {st.session_state.seed_intent}")
     st.write("---")
 
     to_delete = []
 
-    for item in st.session_state.items:
+    for item in items_to_display:
+        if not isinstance(item, dict):
+            continue
+
         # Couleur selon priorité
         color = (
             "#ff9999" if item.get("priorite") == "haute"
@@ -58,7 +70,6 @@ if st.session_state.items:
             else "#cce5ff"
         )
 
-        # Container card
         with st.container():
             st.markdown(
                 f"""
@@ -81,16 +92,15 @@ if st.session_state.items:
                 if st.button("🗑️ Supprimer", key=f"delete_{item.get('id','no_id')}"):
                     to_delete.append(item.get('id'))
 
-    # --- Supprimer items sélectionnés ---
     if to_delete:
         st.session_state.items = [
-            it for it in st.session_state.items if it.get("id") not in to_delete
+            it for it in items_to_display if it.get("id") not in to_delete
         ]
         st.experimental_rerun()
 
     # --- Export JSON filtré ---
     kept_items = [
-        it for it in st.session_state.items if st.session_state.get(f"keep_{it.get('id','no_id')}", False)
+        it for it in items_to_display if st.session_state.get(f"keep_{it.get('id','no_id')}", False)
     ]
 
     st.markdown("### 📦 JSON filtré des items gardés")
@@ -104,6 +114,5 @@ if st.session_state.items:
     )
 
 else:
-    # Affiche ce message uniquement si aucun JSON n’a été collé
     if not st.session_state.json_input.strip():
         st.info("👈 Colle ton JSON dans la sidebar et clique sur 'Charger le JSON'.")
