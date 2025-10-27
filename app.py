@@ -26,7 +26,7 @@ json_input = st.sidebar.text_area(
 
 # --- Charger JSON ---
 if st.sidebar.button("🚀 Charger le JSON"):
-    st.session_state.json_input = json_input  # persistance
+    st.session_state.json_input = json_input  # persistance du texte collé
     try:
         data = json.loads(st.session_state.json_input)
         items = data.get("items", [])
@@ -44,7 +44,7 @@ if st.sidebar.button("🚀 Charger le JSON"):
         st.error(f"Erreur de parsing JSON : {e}")
 
 # --- Affichage des items ---
-if isinstance(st.session_state.items, list) and len(st.session_state.items) > 0:
+if st.session_state.items:
     st.subheader(f"🎯 Intention : {st.session_state.seed_intent}")
     st.write("---")
 
@@ -104,4 +104,6 @@ if isinstance(st.session_state.items, list) and len(st.session_state.items) > 0:
     )
 
 else:
-    st.info("👈 Colle ton JSON dans la sidebar et clique sur 'Charger le JSON'.")
+    # Affiche ce message uniquement si aucun JSON n’a été collé
+    if not st.session_state.json_input.strip():
+        st.info("👈 Colle ton JSON dans la sidebar et clique sur 'Charger le JSON'.")
