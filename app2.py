@@ -1,4 +1,21 @@
-import streamlit as st
+if st.sidebar.button("🤖 Push LLM", type="primary"):
+    full_prompt = PROMPT_TEMPLATE + user_input
+    st.session_state["full_prompt"] = full_prompt
+    st.session_state["show_prompt"] = True
+    
+    js_code = """
+    <script>
+        window.open('https://chatgpt.com/', '_blank');
+    </script>
+    """
+    components.html(js_code, height=0)
+    st.sidebar.success("✅ ChatGPT ouvert ! Copie le prompt ci-dessous 👇")
+
+if st.session_state.get("show_prompt", False):
+    st.sidebar.divider()
+    st.sidebar.markdown("**📋 COPIE CE PROMPT :**")
+    st.sidebar.info("Clique sur l'icône 📋 en haut à droite du bloc pour copier")
+    st.sidebar.code(st.session_state["full_prompt"], language=None)import streamlit as st
 import streamlit.components.v1 as components
 import json
 
