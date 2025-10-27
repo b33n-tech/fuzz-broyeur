@@ -1,27 +1,9 @@
-if st.sidebar.button("🤖 Push LLM", type="primary"):
-    full_prompt = PROMPT_TEMPLATE + user_input
-    st.session_state["full_prompt"] = full_prompt
-    st.session_state["show_prompt"] = True
-    
-    js_code = """
-    <script>
-        window.open('https://chatgpt.com/', '_blank');
-    </script>
-    """
-    components.html(js_code, height=0)
-    st.sidebar.success("✅ ChatGPT ouvert ! Copie le prompt ci-dessous 👇")
-
-if st.session_state.get("show_prompt", False):
-    st.sidebar.divider()
-    st.sidebar.markdown("**📋 COPIE CE PROMPT :**")
-    st.sidebar.info("Clique sur l'icône 📋 en haut à droite du bloc pour copier")
-    st.sidebar.code(st.session_state["full_prompt"], language=None)import streamlit as st
+import streamlit as st
 import streamlit.components.v1 as components
 import json
 
 st.set_page_config(page_title="Machine d'action", layout="wide")
 
-# Style pour fond noir
 st.markdown("""
     <style>
     .stApp {
@@ -33,7 +15,6 @@ st.markdown("""
 
 st.title("⚙️ Machine d'action à haut rendement")
 
-# Template du prompt
 PROMPT_TEMPLATE = """Tu es une MACHINE D'ACTION À HAUT RENDEMENT. 
 Ta mission : à partir d'une **intention stratégique, même très vague ou symbolique**, générer **exclusivement** une liste d'items d'action concrets, granularisés et prêts à exécution. 
 Ne génère **pas** de texte stratégique, pas de métaphores, pas d'analyse philosophique — produis uniquement des éléments opérationnels.
@@ -79,29 +60,25 @@ ENTRÉE (insérée ici) :
 
 """
 
-# --- Sidebar : Génération ---
 st.sidebar.header("🚀 Générer des actions")
-user_input = st.sidebar.text_area("Quelle est ton intention ?", height=150, placeholder="Ex: Lancer mon produit SaaS, préparer la réunion client...")
+user_input = st.sidebar.text_area("Quelle est ton intention ?", height=150, placeholder="Ex: Lancer mon produit SaaS")
+
+full_prompt = PROMPT_TEMPLATE + user_input
+
+st.sidebar.markdown("**📋 Prompt complet (prêt à copier) :**")
+st.sidebar.text_area("", value=full_prompt, height=200, key="prompt_display", label_visibility="collapsed")
 
 if st.sidebar.button("🤖 Push LLM", type="primary"):
-    full_prompt = PROMPT_TEMPLATE + user_input
-    st.session_state["full_prompt"] = full_prompt
-    
     js_code = """
     <script>
         window.open('https://chatgpt.com/', '_blank');
     </script>
     """
     components.html(js_code, height=0)
-
-if "full_prompt" in st.session_state:
-    st.sidebar.divider()
-    st.sidebar.markdown("**📋 Copie ce prompt :**")
-    st.sidebar.code(st.session_state["full_prompt"], language=None)
+    st.sidebar.success("✅ ChatGPT ouvert ! Copie le prompt ci-dessus 👆")
 
 st.sidebar.divider()
 
-# --- Sidebar : Chargement JSON ---
 st.sidebar.header("🧩 Charger JSON")
 json_text = st.sidebar.text_area("Colle le JSON de retour ici", height=300)
 
@@ -114,7 +91,6 @@ if st.sidebar.button("📥 Charger"):
     except Exception as e:
         st.sidebar.error(f"Erreur : {e}")
 
-# --- Affichage ---
 if "data" not in st.session_state:
     st.info("👆 Utilise la sidebar pour générer ou charger des actions")
     st.stop()
@@ -129,17 +105,9 @@ for idx, item in enumerate(items):
     item_id = item.get("id", f"item_{idx}")
     
     priorite = item.get("priorite", "").lower()
-    colors = {
-        "haute": "#8b0000",
-        "moyenne": "#b8860b",
-        "basse": "#1e3a5f"
-    }
+    colors = {"haute": "#8b0000", "moyenne": "#b8860b", "basse": "#1e3a5f"}
     bg = colors.get(priorite, "#1a1a2e")
-    border_colors = {
-        "haute": "#ff4444",
-        "moyenne": "#ffaa00", 
-        "basse": "#4488ff"
-    }
+    border_colors = {"haute": "#ff4444", "moyenne": "#ffaa00", "basse": "#4488ff"}
     border = border_colors.get(priorite, "#666")
     
     st.markdown(f"""
