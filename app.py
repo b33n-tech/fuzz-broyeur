@@ -3,117 +3,201 @@ import json
 
 # --- Config page ---
 st.set_page_config(page_title="Machine d'action à haut rendement", layout="wide")
-st.title("⚙️ Machine d'action à haut rendement")
 
-# --- Initialisations sécurisées ---
-if "items" not in st.session_state:
-    st.session_state.items = []
-if "seed_intent" not in st.session_state:
-    st.session_state.seed_intent = ""
-if "json_input" not in st.session_state:
-    st.session_state.json_input = ""
-if "kept_items" not in st.session_state:
-    st.session_state.kept_items = set()
+# --- Initialisation sécurisée du session_state ---
+def init_state():
+    defaults = {
+        "items": [],
+        "seed_intent": "",
+        "json_input": "",
+        "kept_items": set(),
+        "loaded": False
+    }
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+init_state()
+
+# --- Header ---
+st.title("⚙️ Machine d'action à haut rendement")
+st.markdown("*Transforme le JSON du LLM en interface actionnable*")
 
 # --- Sidebar : JSON Input ---
-st.sidebar.header("🧩 JSON Input")
-json_input = st.sidebar.text_area(
-    "Colle ici le JSON produit par le LLM",
-    value=st.session_state.json_input,
-    height=300,
-    placeholder='{"seed_intent":"...","items":[{"id":"it-01",...}]}'
-)
-
-# --- Charger JSON ---
-if st.sidebar.button("🚀 Charger le JSON"):
-    try:
-        data = json.loads(json_input)
-        items = data.get("items", [])
-        if not isinstance(items, list):
-            items = []
-        # Filtrer et valider les items
-        valid_items = [it for it in items if isinstance(it, dict) and "id" in it]
-        st.session_state.items = valid_items
-        
-        seed_intent = data.get("seed_intent", "")
-        st.session_state.seed_intent = seed_intent if isinstance(seed_intent, str) else ""
-        st.session_state.json_input = json_input
-        
-        # Initialiser tous les items comme "gardés" par défaut
-        st.session_state.kept_items = {it["id"] for it in valid_items}
-        
-        st.sidebar.success("✅ JSON chargé avec succès !")
-    except Exception as e:
-        st.sidebar.error(f"Erreur de parsing JSON : {e}")
-
-# --- Affichage des items ---
-if st.session_state.items:
-    st.subheader(f"🎯 Intention : {st.session_state.seed_intent}")
-    st.write("---")
-
-    for item in st.session_state.items:
-        item_id = item.get("id", "no_id")
-        
-        # Couleur selon priorité
-        color = "#cce5ff"
-        if item.get("priorite") == "haute":
-            color = "#ff9999"
-        elif item.get("priorite") == "moyenne":
-            color = "#fff799"
-
-        # Carte item
-        with st.container():
-            st.markdown(
-                f"""
-                <div style='border:1px solid #ddd; border-radius:10px; padding:15px; margin-bottom:10px; background-color:{color};'>
-                <h4>{item.get('titre', item.get('intitule', 'Sans titre'))}</h4>
-                <p><b>Description:</b> {item.get('description', 'N/A')}</p>
-                <p><b>Action:</b> {item.get('action', 'N/A')}</p>
-                <p><b>Durée estimée:</b> {item.get('temps_estime_min', 'N/A')} min | <b>Effort:</b> {item.get('niveau_d_effort', 'N/A')}/3</p>
-                <p><b>Tags:</b> {', '.join(item.get('tags', []))}</p>
-                <p><i>Prochaine micro-action:</i> {item.get('suggested_next', 'N/A')}</p>
-                </div>
-                """,
-                unsafe_allow_html=True
-            )
-
-            cols = st.columns([0.15, 0.15, 0.7])
-            
-            with cols[0]:
-                # Checkbox "Garder"
-                is_kept = item_id in st.session_state.kept_items
-                if st.checkbox("✅ Garder", value=is_kept, key=f"keep_{item_id}"):
-                    st.session_state.kept_items.add(item_id)
-                else:
-                    st.session_state.kept_items.discard(item_id)
-            
-            with cols[1]:
-                # Bouton "Supprimer"
-                if st.button("🗑️ Supprimer", key=f"delete_{item_id}"):
-                    st.session_state.items = [it for it in st.session_state.items if it.get("id") != item_id]
-                    st.session_state.kept_items.discard(item_id)
-                    st.rerun()
-
-    # --- Export JSON filtré ---
-    kept_items = [it for it in st.session_state.items if it.get("id") in st.session_state.kept_items]
-
-    st.markdown("---")
-    st.markdown("### 📦 JSON filtré des items gardés")
+with st.sidebar:
+    st.header("🧩 Chargement JSON")
     
-    if kept_items:
-        st.json({"seed_intent": st.session_state.seed_intent, "items": kept_items})
+    json_input = st.text_area(
+        "Colle le JSON produit par le LLM",
+        value=st.session_state.json_input,
+        height=400,
+        placeholder='{"seed_intent":"...","items":[...],"summary":"..."}'
+    )
+    
+    if st.button("🚀 Charger le JSON", type="primary", use_container_width=True):
+        if not json_input.strip():
+            st.error("❌ Le champ JSON est vide")
+        else:
+            try:
+                data = json.loads(json_input)
+                
+                # Validation du format
+                if "items" not in data or not isinstance(data["items"], list):
+                    st.error("❌ Format invalide : 'items' manquant ou pas une liste")
+                else:
+                    # Filtrer items valides (avec ID)
+                    valid_items = [
+                        item for item in data["items"] 
+                        if isinstance(item, dict) and "id" in item
+                    ]
+                    
+                    if not valid_items:
+                        st.warning("⚠️ Aucun item valide trouvé (vérifiez les 'id')")
+                    else:
+                        # Mise à jour du state
+                        st.session_state.items = valid_items
+                        st.session_state.seed_intent = data.get("seed_intent", "")
+                        st.session_state.json_input = json_input
+                        st.session_state.kept_items = {item["id"] for item in valid_items}
+                        st.session_state.loaded = True
+                        
+                        st.success(f"✅ {len(valid_items)} items chargés")
+                        st.rerun()
+                        
+            except json.JSONDecodeError as e:
+                st.error(f"❌ JSON invalide : {str(e)[:100]}")
+            except Exception as e:
+                st.error(f"❌ Erreur : {str(e)[:100]}")
+    
+    # Stats
+    if st.session_state.loaded:
+        st.divider()
+        st.metric("Items chargés", len(st.session_state.items))
+        st.metric("Items gardés", len(st.session_state.kept_items))
 
-        st.download_button(
-            label="💾 Télécharger JSON filtré",
-            data=json.dumps({"seed_intent": st.session_state.seed_intent, "items": kept_items}, indent=2, ensure_ascii=False),
-            file_name="actions_filtrees.json",
-            mime="application/json"
-        )
-    else:
-        st.info("Aucun item sélectionné pour l'export.")
+# --- Zone principale ---
+if not st.session_state.loaded:
+    st.info("👈 **Colle ton JSON dans la sidebar** et clique sur 'Charger le JSON'")
+    
+    with st.expander("📖 Format JSON attendu"):
+        st.code('''
+{
+  "seed_intent": "Lancer le produit X",
+  "items": [
+    {
+      "id": "it-01",
+      "titre": "Rédiger pitch deck",
+      "description": "Créer 10 slides...",
+      "action": "Ouvrir Figma et...",
+      "priorite": "haute",
+      "effet_attendu": "Deck prêt",
+      "temps_estime_min": 60,
+      "niveau_d_effort": "2",
+      "tags": ["quick-win"],
+      "suggested_next": "Contacter designer"
+    }
+  ]
+}
+        ''', language="json")
 
 else:
-    if not st.session_state.json_input.strip():
-        st.info("👈 Colle ton JSON dans la sidebar et clique sur 'Charger le JSON'.")
+    # Affichage de l'intention
+    st.subheader(f"🎯 {st.session_state.seed_intent}")
+    st.divider()
+    
+    # Affichage des items
+    for idx, item in enumerate(st.session_state.items):
+        item_id = item["id"]
+        
+        # Définir la couleur selon priorité
+        priorite = item.get("priorite", "basse").lower()
+        color_map = {
+            "haute": "#ffcdd2",    # Rouge clair
+            "moyenne": "#fff9c4",   # Jaune clair
+            "basse": "#e1f5fe"      # Bleu clair
+        }
+        bg_color = color_map.get(priorite, "#f5f5f5")
+        
+        # Container pour chaque item
+        with st.container():
+            # Card HTML
+            st.markdown(f"""
+                <div style='
+                    background-color: {bg_color};
+                    border-left: 4px solid {"#d32f2f" if priorite == "haute" else "#fbc02d" if priorite == "moyenne" else "#0288d1"};
+                    border-radius: 8px;
+                    padding: 20px;
+                    margin-bottom: 15px;
+                '>
+                    <h3 style='margin:0 0 10px 0; color: #1a1a1a;'>{item.get('titre', 'Sans titre')}</h3>
+                    <p style='margin: 5px 0;'><strong>📝 Description :</strong> {item.get('description', 'N/A')}</p>
+                    <p style='margin: 5px 0;'><strong>⚡ Action :</strong> {item.get('action', 'N/A')}</p>
+                    <p style='margin: 5px 0;'><strong>🎯 Effet attendu :</strong> {item.get('effet_attendu', 'N/A')}</p>
+                    <p style='margin: 5px 0;'>
+                        <strong>⏱️ Temps estimé :</strong> {item.get('temps_estime_min', 'N/A')} min | 
+                        <strong>💪 Effort :</strong> {item.get('niveau_d_effort', 'N/A')}/3
+                    </p>
+                    <p style='margin: 5px 0;'><strong>🏷️ Tags :</strong> {', '.join(item.get('tags', [])) if item.get('tags') else 'Aucun'}</p>
+                    <p style='margin: 5px 0; color: #666;'><em>➡️ Prochaine action : {item.get('suggested_next', 'N/A')}</em></p>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            # Contrôles
+            col1, col2, col3 = st.columns([1, 1, 6])
+            
+            with col1:
+                is_kept = item_id in st.session_state.kept_items
+                keep = st.checkbox(
+                    "✅ Garder",
+                    value=is_kept,
+                    key=f"keep_{item_id}_{idx}"
+                )
+                if keep and not is_kept:
+                    st.session_state.kept_items.add(item_id)
+                elif not keep and is_kept:
+                    st.session_state.kept_items.discard(item_id)
+            
+            with col2:
+                if st.button("🗑️ Supprimer", key=f"del_{item_id}_{idx}"):
+                    st.session_state.items = [
+                        it for it in st.session_state.items 
+                        if it["id"] != item_id
+                    ]
+                    st.session_state.kept_items.discard(item_id)
+                    st.rerun()
+    
+    # Export
+    st.divider()
+    st.subheader("📦 Export JSON filtré")
+    
+    kept_items = [
+        item for item in st.session_state.items 
+        if item["id"] in st.session_state.kept_items
+    ]
+    
+    if kept_items:
+        export_data = {
+            "seed_intent": st.session_state.seed_intent,
+            "items": kept_items
+        }
+        
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.json(export_data, expanded=False)
+        with col2:
+            st.download_button(
+                label="💾 Télécharger",
+                data=json.dumps(export_data, indent=2, ensure_ascii=False),
+                file_name="actions_filtrees.json",
+                mime="application/json",
+                use_container_width=True
+            )
     else:
-        st.warning("⚠️ Aucun item valide dans le JSON chargé.")
+        st.warning("⚠️ Aucun item sélectionné pour l'export")
+    
+    # Bouton reset
+    if st.button("🔄 Réinitialiser tout", type="secondary"):
+        for key in ["items", "seed_intent", "json_input", "kept_items", "loaded"]:
+            if key in st.session_state:
+                del st.session_state[key]
+        st.rerun()
