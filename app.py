@@ -5,17 +5,18 @@ import json
 st.set_page_config(page_title="Machine d’action à haut rendement", layout="wide")
 st.title("⚙️ Machine d’action à haut rendement")
 
-# --- Initialisations session_state ---
-if "items" not in st.session_state:
+# --- Initialisations sécurisées ---
+if "items" not in st.session_state or not isinstance(st.session_state.items, list):
     st.session_state.items = []
-if "seed_intent" not in st.session_state:
+
+if "seed_intent" not in st.session_state or not isinstance(st.session_state.seed_intent, str):
     st.session_state.seed_intent = ""
 
-# --- Zone pour coller le JSON ---
+# --- Sidebar : Input JSON ---
 st.sidebar.header("🧩 JSON Input")
 json_input = st.sidebar.text_area(
     "Colle ici le JSON produit par le LLM",
-    height=250,
+    height=300,
     placeholder='{"seed_intent":"...","items":[{"id":"it-01",...}]}'
 )
 
@@ -23,18 +24,28 @@ json_input = st.sidebar.text_area(
 if st.sidebar.button("🚀 Charger le JSON"):
     try:
         data = json.loads(json_input)
-        st.session_state.items = data.get("items", [])
-        st.session_state.seed_intent = data.get("seed_intent", "")
+        # Items sécurisés
+        items = data.get("items", [])
+        if not isinstance(items, list):
+            items = []
+        st.session_state.items = items
+
+        seed_intent = data.get("seed_intent", "")
+        if not isinstance(seed_intent, str):
+            seed_intent = ""
+        st.session_state.seed_intent = seed_intent
+
         st.success("✅ JSON chargé avec succès !")
     except Exception as e:
         st.error(f"Erreur de parsing JSON : {e}")
 
 # --- Affichage des items ---
-if st.session_state.items:
+if isinstance(st.session_state.items, list) and len(st.session_state.items) > 0:
     st.subheader(f"🎯 Intention : {st.session_state.seed_intent}")
     st.write("---")
 
     to_delete = []
+
     for item in st.session_state.items:
         # Couleur selon priorité
         color = (
@@ -61,22 +72,23 @@ if st.session_state.items:
 
             cols = st.columns([0.1, 0.2])
             with cols[0]:
-                st.checkbox("✅ Garder", key=f"keep_{item['id']}", value=True)
+                st.checkbox("✅ Garder", key=f"keep_{item.get('id','no_id')}", value=True)
             with cols[1]:
-                if st.button("🗑️ Supprimer", key=f"delete_{item['id']}"):
-                    to_delete.append(item['id'])
+                if st.button("🗑️ Supprimer", key=f"delete_{item.get('id','no_id')}"):
+                    to_delete.append(item.get('id'))
 
-    # --- Traitement suppression ---
+    # --- Supprimer items sélectionnés ---
     if to_delete:
         st.session_state.items = [
-            it for it in st.session_state.items if it["id"] not in to_delete
+            it for it in st.session_state.items if it.get("id") not in to_delete
         ]
         st.experimental_rerun()
 
     # --- Export JSON filtré ---
     kept_items = [
-        it for it in st.session_state.items if st.session_state.get(f"keep_{it['id']}", False)
+        it for it in st.session_state.items if st.session_state.get(f"keep_{it.get('id','no_id')}", False)
     ]
+
     st.markdown("### 📦 JSON filtré des items gardés")
     st.json({"seed_intent": st.session_state.seed_intent, "items": kept_items})
 
@@ -86,5 +98,6 @@ if st.session_state.items:
         file_name="actions_filtrees.json",
         mime="application/json"
     )
+
 else:
     st.info("👈 Colle ton JSON dans la sidebar et clique sur 'Charger le JSON'.")
