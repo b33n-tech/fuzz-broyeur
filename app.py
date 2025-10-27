@@ -12,19 +12,23 @@ if "items" not in st.session_state or not isinstance(st.session_state.items, lis
 if "seed_intent" not in st.session_state or not isinstance(st.session_state.seed_intent, str):
     st.session_state.seed_intent = ""
 
+if "json_input" not in st.session_state or not isinstance(st.session_state.json_input, str):
+    st.session_state.json_input = ""
+
 # --- Sidebar : Input JSON ---
 st.sidebar.header("🧩 JSON Input")
 json_input = st.sidebar.text_area(
     "Colle ici le JSON produit par le LLM",
+    value=st.session_state.json_input,
     height=300,
     placeholder='{"seed_intent":"...","items":[{"id":"it-01",...}]}'
 )
 
 # --- Charger JSON ---
 if st.sidebar.button("🚀 Charger le JSON"):
+    st.session_state.json_input = json_input  # persistance
     try:
-        data = json.loads(json_input)
-        # Items sécurisés
+        data = json.loads(st.session_state.json_input)
         items = data.get("items", [])
         if not isinstance(items, list):
             items = []
