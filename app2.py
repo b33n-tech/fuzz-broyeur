@@ -69,12 +69,29 @@ user_input = st.sidebar.text_area("Quelle est ton intention ?", height=150, plac
 if st.sidebar.button("🤖 Push LLM", type="primary"):
     # Construire le prompt complet : template + input utilisateur
     full_prompt = PROMPT_TEMPLATE + user_input
-    prompt_json = json.dumps(full_prompt)
+    st.session_state["full_prompt"] = full_prompt
     
-    js_code = f"""
+    # Ouvrir ChatGPT
+    js_code = """
     <script>
-        const promptText = {prompt_json};
-        navigator.clipboard.writeText(promptText).then(function() {{
+        window.open('https://chatgpt.com/', '_blank');
+    </script>
+    """
+    components.html(js_code, height=0)
+
+# Afficher le bouton de copie si le prompt existe
+if "full_prompt" in st.session_state:
+    st.sidebar.divider()
+    st.sidebar.markdown("**📋 Prompt généré :**")
+    st.sidebar.code(st.session_state["full_prompt"][:200] + "...", language=None)
+    
+    # Bouton de copie natif Streamlit
+    st.sidebar.button(
+        "📋 Copier le prompt complet",
+        on_click=lambda: None,
+        help="Clique puis utilise le code ci-dessous"
+    )
+    st.sidebar.code(st.session_state["full_prompt"], language=None)).then(function() {{
             console.log('Prompt copié !');
         }});
         window.open('https://chatgpt.com/', '_blank');
