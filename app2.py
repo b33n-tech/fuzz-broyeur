@@ -59,6 +59,7 @@ RÈGLES OPÉRATIONNELLES :
 - Génère des `id` courts (format `it-01`, `it-02`, ...).
  
 ENTRÉE (insérée ici) :
+
 """
 
 # --- Sidebar : Génération ---
