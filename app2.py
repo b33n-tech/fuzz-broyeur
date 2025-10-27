@@ -67,11 +67,9 @@ st.sidebar.header("🚀 Générer des actions")
 user_input = st.sidebar.text_area("Quelle est ton intention ?", height=150, placeholder="Ex: Lancer mon produit SaaS, préparer la réunion client...")
 
 if st.sidebar.button("🤖 Push LLM", type="primary"):
-    # Construire le prompt complet : template + input utilisateur
     full_prompt = PROMPT_TEMPLATE + user_input
     st.session_state["full_prompt"] = full_prompt
     
-    # Ouvrir ChatGPT
     js_code = """
     <script>
         window.open('https://chatgpt.com/', '_blank');
@@ -79,26 +77,10 @@ if st.sidebar.button("🤖 Push LLM", type="primary"):
     """
     components.html(js_code, height=0)
 
-# Afficher le bouton de copie si le prompt existe
 if "full_prompt" in st.session_state:
     st.sidebar.divider()
-    st.sidebar.markdown("**📋 Prompt généré :**")
-    st.sidebar.code(st.session_state["full_prompt"][:200] + "...", language=None)
-    
-    # Bouton de copie natif Streamlit
-    st.sidebar.button(
-        "📋 Copier le prompt complet",
-        on_click=lambda: None,
-        help="Clique puis utilise le code ci-dessous"
-    )
-    st.sidebar.code(st.session_state["full_prompt"], language=None)).then(function() {{
-            console.log('Prompt copié !');
-        }});
-        window.open('https://chatgpt.com/', '_blank');
-    </script>
-    """
-    components.html(js_code, height=0)
-    st.sidebar.success("✅ Prompt copié ! ChatGPT s'ouvre...")
+    st.sidebar.markdown("**📋 Copie ce prompt :**")
+    st.sidebar.code(st.session_state["full_prompt"], language=None)
 
 st.sidebar.divider()
 
@@ -129,7 +111,6 @@ st.divider()
 for idx, item in enumerate(items):
     item_id = item.get("id", f"item_{idx}")
     
-    # Couleurs adaptées au thème sombre
     priorite = item.get("priorite", "").lower()
     colors = {
         "haute": "#8b0000",
@@ -144,7 +125,6 @@ for idx, item in enumerate(items):
     }
     border = border_colors.get(priorite, "#666")
     
-    # Card
     st.markdown(f"""
         <div style='
             background:{bg}; 
