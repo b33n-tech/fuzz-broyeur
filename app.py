@@ -6,11 +6,11 @@ st.set_page_config(page_title="Machine d’action à haut rendement", layout="wi
 st.title("⚙️ Machine d’action à haut rendement")
 
 # --- Initialisations sécurisées ---
-if "items" not in st.session_state:
+if "items" not in st.session_state or not isinstance(st.session_state.items, list):
     st.session_state.items = []
-if "seed_intent" not in st.session_state:
+if "seed_intent" not in st.session_state or not isinstance(st.session_state.seed_intent, str):
     st.session_state.seed_intent = ""
-if "json_input" not in st.session_state:
+if "json_input" not in st.session_state or not isinstance(st.session_state.json_input, str):
     st.session_state.json_input = ""
 
 # --- Sidebar : JSON Input ---
@@ -22,6 +22,7 @@ json_input = st.sidebar.text_area(
     placeholder='{"seed_intent":"...","items":[{"id":"it-01",...}]}'
 )
 
+# --- Charger JSON ---
 def charger_json():
     try:
         data = json.loads(json_input)
@@ -43,9 +44,10 @@ st.sidebar.button("🚀 Charger le JSON", on_click=charger_json)
 def supprimer_item(item_id):
     st.session_state.items = [it for it in st.session_state.items if it.get("id") != item_id]
 
-# --- Affichage items ---
-items_to_display = st.session_state.items
+# --- Préparer items à afficher ---
+items_to_display = [it for it in st.session_state.get("items", []) if isinstance(it, dict)]
 
+# --- Affichage des items ---
 if items_to_display:
     st.subheader(f"🎯 Intention : {st.session_state.seed_intent}")
     st.write("---")
@@ -85,7 +87,7 @@ if items_to_display:
                 # Bouton "Supprimer"
                 if st.button("🗑️ Supprimer", key=f"delete_{item.get('id','no_id')}"):
                     supprimer_item(item.get('id'))
-                    st.experimental_rerun = None  # désactivé pour éviter erreurs
+                    st.experimental_rerun = None  # Ne plus utiliser rerun, suppression gérée par session_state
 
     # --- Export JSON filtré ---
     kept_items = [it for it in st.session_state.items if st.session_state.get(f"keep_{it.get('id','no_id')}", True)]
@@ -105,3 +107,4 @@ else:
         st.info("👈 Colle ton JSON dans la sidebar et clique sur 'Charger le JSON'.")
     else:
         st.warning("⚠️ Aucun item à afficher dans le JSON chargé.")
+
