@@ -61,12 +61,11 @@ ENTRÉE (insérée ici) :
 """
 
 st.sidebar.header("🚀 Générer des actions")
-user_input = st.sidebar.text_area("Quelle est ton intention ?", height=150, placeholder="Ex: Lancer mon produit SaaS")
+user_input = st.sidebar.text_area("Écris ton intention, copie le prompt ci-dessous, clique Push LLM", height=100, placeholder="Ex: Lancer mon produit SaaS")
 
 full_prompt = PROMPT_TEMPLATE + user_input
 
-st.sidebar.markdown("**📋 Prompt complet (prêt à copier) :**")
-st.sidebar.text_area("", value=full_prompt, height=200, key="prompt_display", label_visibility="collapsed")
+st.sidebar.text_area("📋 Prompt à copier :", value=full_prompt, height=300, key="prompt_display")
 
 if st.sidebar.button("🤖 Push LLM", type="primary"):
     js_code = """
@@ -75,7 +74,7 @@ if st.sidebar.button("🤖 Push LLM", type="primary"):
     </script>
     """
     components.html(js_code, height=0)
-    st.sidebar.success("✅ ChatGPT ouvert ! Copie le prompt ci-dessus 👆")
+    st.sidebar.success("✅ ChatGPT ouvert !")
 
 st.sidebar.divider()
 
