@@ -66,7 +66,8 @@ st.sidebar.header("🚀 Générer des actions")
 user_input = st.sidebar.text_area("Quelle est ton intention ?", height=150, placeholder="Ex: Lancer mon produit SaaS, préparer la réunion client...")
 
 if st.sidebar.button("🤖 Push LLM", type="primary"):
-    full_prompt = PROMPT_TEMPLATE + "\n" + user_input
+    # Construire le prompt complet : template + input utilisateur
+    full_prompt = PROMPT_TEMPLATE + user_input
     prompt_json = json.dumps(full_prompt)
     
     js_code = f"""
