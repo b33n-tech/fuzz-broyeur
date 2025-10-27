@@ -70,10 +70,11 @@ with st.sidebar:
                 st.error(f"❌ Erreur : {str(e)[:100]}")
     
     # Stats
-    if st.session_state.loaded:
+    if st.session_state.loaded and isinstance(st.session_state.items, list):
         st.divider()
         st.metric("Items chargés", len(st.session_state.items))
-        st.metric("Items gardés", len(st.session_state.kept_items))
+        kept_count = len(st.session_state.kept_items) if isinstance(st.session_state.kept_items, set) else 0
+        st.metric("Items gardés", kept_count)
 
 # --- Zone principale ---
 if not st.session_state.loaded:
@@ -101,12 +102,23 @@ if not st.session_state.loaded:
         ''', language="json")
 
 else:
+    # Vérification de sécurité
+    if not isinstance(st.session_state.items, list):
+        st.error("⚠️ Erreur de session. Veuillez recharger la page.")
+        if st.button("🔄 Réinitialiser"):
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
+        st.stop()
+    
     # Affichage de l'intention
     st.subheader(f"🎯 {st.session_state.seed_intent}")
     st.divider()
     
     # Affichage des items
-    for idx, item in enumerate(st.session_state.items):
+    items_to_display = st.session_state.items if isinstance(st.session_state.items, list) else []
+    
+    for idx, item in enumerate(items_to_display):
         item_id = item["id"]
         
         # Définir la couleur selon priorité
@@ -170,30 +182,34 @@ else:
     st.divider()
     st.subheader("📦 Export JSON filtré")
     
-    kept_items = [
-        item for item in st.session_state.items 
-        if item["id"] in st.session_state.kept_items
-    ]
-    
-    if kept_items:
-        export_data = {
-            "seed_intent": st.session_state.seed_intent,
-            "items": kept_items
-        }
-        
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.json(export_data, expanded=False)
-        with col2:
-            st.download_button(
-                label="💾 Télécharger",
-                data=json.dumps(export_data, indent=2, ensure_ascii=False),
-                file_name="actions_filtrees.json",
-                mime="application/json",
-                use_container_width=True
-            )
+    # Vérification de sécurité
+    if not isinstance(st.session_state.items, list) or not isinstance(st.session_state.kept_items, set):
+        st.error("⚠️ État corrompu, impossible d'exporter")
     else:
-        st.warning("⚠️ Aucun item sélectionné pour l'export")
+        kept_items = [
+            item for item in st.session_state.items 
+            if item["id"] in st.session_state.kept_items
+        ]
+    
+        if kept_items:
+            export_data = {
+                "seed_intent": st.session_state.seed_intent,
+                "items": kept_items
+            }
+            
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.json(export_data, expanded=False)
+            with col2:
+                st.download_button(
+                    label="💾 Télécharger",
+                    data=json.dumps(export_data, indent=2, ensure_ascii=False),
+                    file_name="actions_filtrees.json",
+                    mime="application/json",
+                    use_container_width=True
+                )
+        else:
+            st.warning("⚠️ Aucun item sélectionné pour l'export")
     
     # Bouton reset
     if st.button("🔄 Réinitialiser tout", type="secondary"):
