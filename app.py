@@ -6,16 +6,14 @@ st.set_page_config(page_title="Machine d’action à haut rendement", layout="wi
 st.title("⚙️ Machine d’action à haut rendement")
 
 # --- Initialisations sécurisées ---
-if "items" not in st.session_state or not isinstance(st.session_state.items, list):
+if "items" not in st.session_state:
     st.session_state.items = []
-
-if "seed_intent" not in st.session_state or not isinstance(st.session_state.seed_intent, str):
+if "seed_intent" not in st.session_state:
     st.session_state.seed_intent = ""
-
-if "json_input" not in st.session_state or not isinstance(st.session_state.json_input, str):
+if "json_input" not in st.session_state:
     st.session_state.json_input = ""
 
-# --- Sidebar : Input JSON ---
+# --- Sidebar : JSON Input ---
 st.sidebar.header("🧩 JSON Input")
 json_input = st.sidebar.text_area(
     "Colle ici le JSON produit par le LLM",
@@ -24,11 +22,9 @@ json_input = st.sidebar.text_area(
     placeholder='{"seed_intent":"...","items":[{"id":"it-01",...}]}'
 )
 
-# --- Charger JSON ---
-if st.sidebar.button("🚀 Charger le JSON"):
-    st.session_state.json_input = json_input
+def charger_json():
     try:
-        data = json.loads(st.session_state.json_input)
+        data = json.loads(json_input)
         items = data.get("items", [])
         if not isinstance(items, list):
             items = []
@@ -36,33 +32,33 @@ if st.sidebar.button("🚀 Charger le JSON"):
         st.session_state.items = [it for it in items if isinstance(it, dict)]
         seed_intent = data.get("seed_intent", "")
         st.session_state.seed_intent = seed_intent if isinstance(seed_intent, str) else ""
+        st.session_state.json_input = json_input
         st.success("✅ JSON chargé avec succès !")
     except Exception as e:
         st.error(f"Erreur de parsing JSON : {e}")
 
-# --- Préparer items pour affichage sûr ---
-items_to_display = []
-if isinstance(st.session_state.items, list):
-    items_to_display = [it for it in st.session_state.items if isinstance(it, dict)]
-elif isinstance(st.session_state.items, dict):
-    items_to_display = [st.session_state.items]
+st.sidebar.button("🚀 Charger le JSON", on_click=charger_json)
 
-# --- Affichage des items ---
+# --- Fonction de suppression ---
+def supprimer_item(item_id):
+    st.session_state.items = [it for it in st.session_state.items if it.get("id") != item_id]
+
+# --- Affichage items ---
+items_to_display = st.session_state.items
+
 if items_to_display:
     st.subheader(f"🎯 Intention : {st.session_state.seed_intent}")
     st.write("---")
 
-    to_delete = []
-
     for item in items_to_display:
         # Couleur selon priorité
-        color = "#cce5ff"  # défaut
+        color = "#cce5ff"
         if item.get("priorite") == "haute":
             color = "#ff9999"
         elif item.get("priorite") == "moyenne":
             color = "#fff799"
 
-        # Container card
+        # Carte item
         with st.container():
             st.markdown(
                 f"""
@@ -80,22 +76,19 @@ if items_to_display:
 
             cols = st.columns([0.1, 0.2])
             with cols[0]:
-                st.checkbox("✅ Garder", key=f"keep_{item.get('id','no_id')}", value=True)
+                # Checkbox "Garder" lié à session_state
+                keep_key = f"keep_{item.get('id','no_id')}"
+                if keep_key not in st.session_state:
+                    st.session_state[keep_key] = True
+                st.session_state[keep_key] = st.checkbox("✅ Garder", value=st.session_state[keep_key], key=keep_key)
             with cols[1]:
+                # Bouton "Supprimer"
                 if st.button("🗑️ Supprimer", key=f"delete_{item.get('id','no_id')}"):
-                    to_delete.append(item.get('id'))
-
-    # --- Supprimer items sélectionnés ---
-    if to_delete:
-        st.session_state.items = [
-            it for it in items_to_display if it.get("id") not in to_delete
-        ]
-        st.experimental_rerun()
+                    supprimer_item(item.get('id'))
+                    st.experimental_rerun = None  # désactivé pour éviter erreurs
 
     # --- Export JSON filtré ---
-    kept_items = [
-        it for it in items_to_display if st.session_state.get(f"keep_{it.get('id','no_id')}", False)
-    ]
+    kept_items = [it for it in st.session_state.items if st.session_state.get(f"keep_{it.get('id','no_id')}", True)]
 
     st.markdown("### 📦 JSON filtré des items gardés")
     st.json({"seed_intent": st.session_state.seed_intent, "items": kept_items})
@@ -108,6 +101,7 @@ if items_to_display:
     )
 
 else:
-    # Affiche le message uniquement si aucun JSON n’a été collé
     if not st.session_state.json_input.strip():
         st.info("👈 Colle ton JSON dans la sidebar et clique sur 'Charger le JSON'.")
+    else:
+        st.warning("⚠️ Aucun item à afficher dans le JSON chargé.")
